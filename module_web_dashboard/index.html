@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>工业产线巡检智能体</title>
+  <style>
+    :root {
+      --bg: #eef3f7;
+      --panel: #ffffff;
+      --ink: #10202f;
+      --muted: #607080;
+      --line: #d6e1eb;
+      --nav: #111c27;
+      --nav2: #172838;
+      --cyan: #0b83a5;
+      --cyan-soft: #e5f6fa;
+      --green: #14804a;
+      --green-soft: #e6f5ec;
+      --amber: #a96700;
+      --amber-soft: #fff2d8;
+      --red: #b42318;
+      --red-soft: #ffe4df;
+      --blue: #1d5f9f;
+      --blue-soft: #e5effa;
+      --shadow: 0 10px 28px rgba(16, 32, 47, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(11, 131, 165, 0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(11, 131, 165, 0.06) 1px, transparent 1px),
+        var(--bg);
+      background-size: 28px 28px;
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+    button, input { font: inherit; }
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+    }
+    aside {
+      background: linear-gradient(180deg, var(--nav), var(--nav2));
+      color: #f6f8fa;
+      padding: 22px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      border-right: 1px solid rgba(255, 255, 255, 0.10);
+    }
+    main { padding: 22px; min-width: 0; }
+    h1 { font-size: 24px; line-height: 1.18; margin: 0 0 7px; letter-spacing: 0; }
+    h2 { font-size: 15px; margin: 0 0 12px; }
+    h3 { font-size: 14px; margin: 0 0 8px; }
+    .sub { color: #b5c3d0; margin: 0 0 18px; }
+    .brandline {
+      height: 3px;
+      width: 86px;
+      background: linear-gradient(90deg, #2dd4bf, #38bdf8);
+      border-radius: 999px;
+      margin: 0 0 18px;
+    }
+    .panel {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      min-width: 0;
+    }
+    aside .panel {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: none;
+    }
+    .toolbar { display: grid; gap: 10px; margin-bottom: 16px; }
+    .btn {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: linear-gradient(135deg, #1677b8, #0b83a5);
+      color: #fff;
+      border-radius: 6px;
+      padding: 11px 12px;
+      cursor: pointer;
+      text-align: center;
+      font-weight: 700;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn.secondary { background: transparent; }
+    .field {
+      width: 100%;
+      color: #f6f8fa;
+      background: #0f1923;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 6px;
+      padding: 10px;
+      outline: none;
+    }
+    .checkline {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: #dbe5ee;
+      user-select: none;
+    }
+    .file {
+      width: 100%;
+      color: #dbe5ee;
+      border: 1px dashed rgba(255, 255, 255, 0.28);
+      border-radius: 6px;
+      padding: 10px;
+    }
+    .codebox {
+      background: #0f1821;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #d6e4f0;
+      border-radius: 8px;
+      padding: 12px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font: 12px/1.55 Consolas, "Cascadia Mono", monospace;
+    }
+    .grid { display: grid; gap: 16px; }
+    .heroGrid { grid-template-columns: 300px minmax(0, 1fr); align-items: stretch; }
+    .twocol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stagegrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .alarm {
+      border-radius: 8px;
+      padding: 20px;
+      min-height: 210px;
+      border: 2px solid var(--line);
+      display: grid;
+      align-content: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .alarm::after {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      border-radius: 6px;
+      pointer-events: none;
+    }
+    .alarm.normal { background: var(--green-soft); border-color: var(--green); }
+    .alarm.warning { background: var(--amber-soft); border-color: var(--amber); }
+    .alarm.abnormal { background: var(--red-soft); border-color: var(--red); }
+    .alarm .label { font-size: 13px; color: var(--muted); }
+    .alarm .risk { font-size: 46px; font-weight: 800; line-height: 1; letter-spacing: 0; }
+    .alarm.normal .risk { color: var(--green); }
+    .alarm.warning .risk { color: var(--amber); }
+    .alarm.abnormal .risk { color: var(--red); }
+    .advice {
+      min-height: 210px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .advice .textblock {
+      font-size: 16px;
+      line-height: 1.7;
+      border-left: 4px solid var(--cyan);
+    }
+    .stage {
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: #fff;
+      min-height: 92px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stage::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--cyan);
+      opacity: 0.42;
+    }
+    .stage .name { color: var(--muted); margin-bottom: 10px; }
+    .stage .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #edf2f7;
+      color: #435263;
+    }
+    .badge.ok { background: var(--green-soft); color: var(--green); }
+    .badge.warn { background: var(--amber-soft); color: var(--amber); }
+    .badge.bad { background: var(--red-soft); color: var(--red); }
+    .badge.info { background: var(--blue-soft); color: var(--blue); }
+    .media {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #e9eef3;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+    }
+    .media img { width: 100%; height: 100%; object-fit: contain; background: #111820; }
+    .kv { display: grid; gap: 8px; }
+    .row {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid #edf1f5;
+    }
+    .row:last-child { border-bottom: 0; }
+    .key { color: var(--muted); }
+    .val { overflow-wrap: anywhere; }
+    .textblock {
+      background: #fbfcfd;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 88px;
+      white-space: pre-wrap;
+    }
+    .muted { color: var(--muted); }
+    .footer { margin-top: 16px; color: #b7c3cf; font-size: 12px; }
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { position: relative; height: auto; }
+      .heroGrid, .twocol, .stagegrid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <h1>工业产线巡检智能体</h1>
+      <p class="sub">Jetbot 具身巡检、视觉理解与风险处置</p>
+      <div class="brandline"></div>
+
+      <div class="toolbar">
+        <input class="field" id="commandInput" value="开始 A01 工位巡检" aria-label="巡检指令">
+        <label class="checkline">
+          <input id="motionToggle" type="checkbox" checked>
+          允许小车运动
+        </label>
+        <button class="btn" id="startBtn">启动巡检</button>
+        <button class="btn secondary" id="refreshBtn">刷新状态</button>
+        <label class="file">
+          选择历史报告 JSON
+          <input id="fileInput" type="file" accept=".json,application/json" style="width:100%;margin-top:8px;">
+        </label>
+      </div>
+
+      <div class="panel">
+        <h2>运行状态</h2>
+        <div class="codebox" id="runtimeBox">等待启动。</div>
+      </div>
+
+      <div class="footer" id="loadInfo">请确认场地安全后启动巡检。</div>
+    </aside>
+
+    <main class="grid">
+      <section class="panel">
+        <h2>流程进度</h2>
+        <div class="grid stagegrid" id="stageGrid"></div>
+      </section>
+
+      <section class="grid heroGrid">
+        <div class="alarm warning" id="alarmBox">
+          <div class="label">警报判断</div>
+          <div class="risk" id="riskText">待巡检</div>
+          <div id="alarmReason" class="muted">启动后自动显示最终判断。</div>
+        </div>
+        <div class="panel advice">
+          <h2>大模型处置建议</h2>
+          <div class="textblock" id="nextAction">等待巡检结果。</div>
+        </div>
+      </section>
+
+      <section class="grid twocol">
+        <div class="panel">
+          <h2>QR 定位证据</h2>
+          <div class="media" id="qrMedia">等待 QR 成功图片</div>
+          <div class="kv" id="qrKv" style="margin-top:12px;"></div>
+        </div>
+        <div class="panel">
+          <h2>工况牌搜索证据</h2>
+          <div class="media" id="targetMedia">等待工况牌图片</div>
+          <div class="kv" id="targetKv" style="margin-top:12px;"></div>
+        </div>
+      </section>
+
+      <section class="grid twocol">
+        <div class="panel">
+          <h2>多模态识别结果</h2>
+          <div class="kv" id="decisionKv"></div>
+        </div>
+        <div class="panel">
+          <h2>阶段输出摘要</h2>
+          <div class="grid twocol">
+            <div>
+              <h3>可见文字</h3>
+              <div class="textblock" id="visibleText">暂无。</div>
+            </div>
+            <div>
+              <h3>判断依据</h3>
+              <div class="textblock" id="reasonText">暂无。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let pollTimer = null;
+
+    $("startBtn").addEventListener("click", startInspection);
+    $("refreshBtn").addEventListener("click", refreshStatus);
+    $("fileInput").addEventListener("change", loadFileReport);
+
+    renderEmpty();
+    refreshStatus();
+
+    async function startInspection() {
+      const command = $("commandInput").value.trim() || "开始 A01 工位巡检";
+      const enableMotion = $("motionToggle").checked;
+      $("startBtn").disabled = true;
+      $("loadInfo").textContent = "巡检启动中...";
+      renderRunning(command);
+      try {
+        const response = await fetch("/api/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command, enable_motion: enableMotion })
+        });
+        const state = await response.json();
+        if (!response.ok) throw new Error(state.error || "启动失败");
+        renderState(state);
+        startPolling();
+      } catch (error) {
+        $("loadInfo").textContent = "启动失败：" + error.message;
+        $("startBtn").disabled = false;
+      }
+    }
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch("/api/status?t=" + Date.now(), { cache: "no-store" });
+        const state = await response.json();
+        renderState(state);
+        if (state.running) startPolling();
+      } catch (error) {
+        $("loadInfo").textContent = "无法连接控制服务。请先运行：python3 dashboard_server.py";
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(refreshStatus, 1500);
+    }
+
+    function stopPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = null;
+    }
+
+    function renderState(state) {
+      const running = !!state.running;
+      $("startBtn").disabled = running;
+      if (!running) stopPolling();
+      renderStages(state.stage_status || {});
+      $("runtimeBox").textContent = [
+        "状态: " + (running ? "巡检中" : "空闲/完成"),
+        "开始: " + (state.started_at || "暂无"),
+        "结束: " + (state.finished_at || "暂无"),
+        "摘要: " + (state.summary || "暂无"),
+        "语音: " + voiceStatus(state.report),
+        "错误: " + (state.error || "无")
+      ].join("\n");
+      $("loadInfo").textContent = running ? "巡检进行中，页面会自动刷新。" : "状态已更新。";
+      if (state.report) {
+        renderReport(state.report);
+      } else if (running) {
+        renderAlarm("warning", { inspection_summary: "巡检正在执行，等待最终警报判断。" });
+      }
+    }
+
+    function renderRunning(command) {
+      renderStages({ anchor: "running", search: "not_run", motion: "not_run", feedback: "not_run" });
+      $("runtimeBox").textContent = "状态: 巡检中\n指令: " + command;
+      renderAlarm("warning", { inspection_summary: "巡检已启动，正在接近定位牌。" });
+    }
+
+    function loadFileReport(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const report = JSON.parse(reader.result);
+          renderReport(report);
+          $("loadInfo").textContent = "已读取历史报告。";
+        } catch (error) {
+          $("loadInfo").textContent = "JSON 解析失败：" + error.message;
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    function renderEmpty() {
+      renderStages({});
+      setMedia("qrMedia", null, "等待 QR 成功图片");
+      setMedia("targetMedia", null, "等待工况牌图片");
+      $("qrKv").innerHTML = "";
+      $("targetKv").innerHTML = "";
+      $("decisionKv").innerHTML = "";
+    }
+
+    function renderReport(report) {
+      const decision = report.decision || parseSearchDecision(report.search_report || {});
+      const risk = normalizeRisk(decision.risk_level);
+      renderAlarm(risk, decision);
+      renderStages(report.stage_status || {});
+      renderQr(report.anchor_report || {});
+      renderTarget(report.search_report || {}, decision);
+      renderDecision(report, decision);
+      $("nextAction").textContent = decision.next_action || "暂无建议。";
+      $("visibleText").textContent = decision.visible_text || "暂无。";
+      $("reasonText").textContent = decision.reason || "暂无。";
+    }
+
+    function parseSearchDecision(searchReport) {
+      const parsed = (((searchReport || {}).vision || {}).parsed) || {};
+      return {
+        target_found: parsed.target_found,
+        best_pose: parsed.best_pose,
+        risk_level: parsed.risk_level,
+        confidence: parsed.confidence,
+        visible_text: parsed.visible_text,
+        inspection_summary: parsed.inspection_summary,
+        next_action: parsed.next_action,
+        reason: parsed.reason
+      };
+    }
+
+    function renderAlarm(risk, decision) {
+      const box = $("alarmBox");
+      box.className = "alarm " + risk;
+      const label = { normal: "正常", warning: "预警", abnormal: "警报" }[risk] || "待巡检";
+      $("riskText").textContent = label;
+      $("alarmReason").textContent = decision.inspection_summary || decision.reason || "暂无风险摘要。";
+    }
+
+    function renderStages(status) {
+      const stages = [
+        ["anchor", "QR 定位", "靠近 A01 定位牌"],
+        ["search", "工况搜索", "云台扫描并拍照"],
+        ["motion", "车身转向", "朝向工况牌"],
+        ["feedback", "声光报警", "蜂鸣器与灯带"]
+      ];
+      $("stageGrid").innerHTML = stages.map(([key, title, hint]) => {
+        const value = status[key] || "not_run";
+        const cls = value === "ok" || value === "executed" ? "ok" :
+          value === "not_ok" || value === "error" ? "bad" :
+          value === "running" ? "warn" : "info";
+        return `<div class="stage">
+          <div class="name">${escapeHtml(title)}</div>
+          <span class="badge ${cls}">${escapeHtml(statusText(value))}</span>
+          <div class="hint">${escapeHtml(hint)}</div>
+        </div>`;
+      }).join("");
+    }
+
+    function renderQr(anchorReport) {
+      const events = anchorReport.events || [];
+      const success = [...events].reverse().find((event) =>
+        event.local_qr && event.local_qr.target_ok && event.annotated_image_path
+      ) || [...events].reverse().find((event) =>
+        event.detection && event.detection.target_ok && event.annotated_image_path
+      ) || [...events].reverse().find((event) => event.annotated_image_path);
+      const finalDetection = anchorReport.final_detection || {};
+      const detection = (success && (success.local_qr || success.detection)) || finalDetection || {};
+      setMedia("qrMedia", success && success.annotated_image_path, "等待 QR 成功图片");
+      $("qrKv").innerHTML = rows([
+        ["停止原因", anchorReport.stop_reason],
+        ["移动步数", anchorReport.moved_steps],
+        ["QR 宽度", formatPx(detection.qr_width_px || finalDetection.qr_width_px)],
+        ["工位信息", payloadText(detection.payload || finalDetection.payload)],
+        ["图片阶段", success ? ("step_" + success.step_index) : "暂无"]
+      ]);
+    }
+
+    function renderTarget(searchReport, decision) {
+      const bestPose = decision.best_pose || (((searchReport.vision || {}).parsed || {}).best_pose);
+      const candidates = searchReport.candidate_images || [];
+      const best = candidates.find((item) => item.pose === bestPose) ||
+        candidates.find((item) => item.pose && item.pose.indexOf("wide") >= 0) ||
+        candidates[0];
+      setMedia("targetMedia", best && best.path, "等待工况牌图片");
+      $("targetKv").innerHTML = rows([
+        ["目标找到", boolText(decision.target_found)],
+        ["最佳视角", bestPose || "未知"],
+        ["置信度", decision.confidence],
+        ["图片路径", best && best.path]
+      ]);
+    }
+
+    function renderDecision(report, decision) {
+      $("decisionKv").innerHTML = rows([
+        ["任务摘要", report.summary],
+        ["巡检指令", report.command],
+        ["风险等级", riskLabel(decision.risk_level)],
+        ["识别结果", decision.inspection_summary],
+        ["目标状态", boolText(decision.target_found)]
+      ]);
+    }
+
+    function setMedia(id, path, fallback) {
+      const box = $(id);
+      if (!path) {
+        box.textContent = fallback;
+        return;
+      }
+      box.innerHTML = `<img src="${escapeAttr(toOutputUrl(path))}" alt="">`;
+    }
+
+    function toOutputUrl(path) {
+      if (!path) return "";
+      const normalized = String(path).replace(/\\/g, "/");
+      if (normalized.startsWith("http://") || normalized.startsWith("https://") || normalized.startsWith("/outputs/")) {
+        return normalized;
+      }
+      const marker = "the21thYDS/";
+      const idx = normalized.indexOf(marker);
+      if (idx >= 0) return "/outputs/" + normalized.slice(idx + marker.length);
+      return "/outputs/" + normalized.replace(/^\.?\//, "");
+    }
+
+    function rows(items) {
+      return items.map(([key, value]) => `<div class="row">
+        <div class="key">${escapeHtml(key)}</div>
+        <div class="val">${escapeHtml(formatValue(value))}</div>
+      </div>`).join("");
+    }
+
+    function statusText(value) {
+      return {
+        not_run: "未开始",
+        running: "进行中",
+        ok: "完成",
+        not_ok: "失败",
+        skipped: "跳过",
+        executed: "已执行",
+        error: "错误"
+      }[value] || value;
+    }
+
+    function normalizeRisk(value) {
+      const risk = String(value || "").toLowerCase();
+      if (risk === "normal" || risk === "warning" || risk === "abnormal") return risk;
+      return "warning";
+    }
+
+    function riskLabel(value) {
+      const risk = normalizeRisk(value);
+      return { normal: "normal / 正常", warning: "warning / 预警", abnormal: "abnormal / 警报" }[risk];
+    }
+
+    function boolText(value) {
+      if (value === true) return "是";
+      if (value === false) return "否";
+      return "未知";
+    }
+
+    function formatPx(value) {
+      if (value === undefined || value === null || value === "") return "未知";
+      const num = Number(value);
+      return Number.isFinite(num) ? num.toFixed(1) + " px" : String(value);
+    }
+
+    function payloadText(value) {
+      if (!value || (typeof value === "object" && Object.keys(value).length === 0)) return "暂无";
+      if (typeof value === "string") return value;
+      return JSON.stringify(value);
+    }
+
+    function formatValue(value) {
+      if (value === undefined || value === null || value === "") return "暂无";
+      if (typeof value === "object") return JSON.stringify(value);
+      return String(value);
+    }
+
+    function escapeHtml(value) {
+      return formatValue(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function escapeAttr(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function voiceStatus(report) {
+      if (!report) return "暂无";
+      const initVoice = (report.dashboard_preflight || {}).init_voice;
+      const riskVoice = report.voice_report;
+      const initText = initVoice ? ("初始化 " + (initVoice.status || "unknown")) : "初始化 暂无";
+      const riskText = riskVoice ? ("风险播报 " + (riskVoice.status || "unknown")) : "风险播报 暂无";
+      return initText + "；" + riskText;
+    }
+  </script>
+</body>
+</html>

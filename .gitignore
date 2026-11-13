@@ -1,0 +1,26 @@
+# 凭据 — 绝不提交真实密钥
+stepfun_api_key.txt
+step_api_key.txt
+*_api_key.txt
+*.env
+.env
+
+# 运行产物（由各模块脚本生成）
+*_output/
+outputs/
+*.log
+jetbot_selfcheck_report.json
+jetbot_selfcheck_report.txt
+selfcheck_frame.jpg
+inspection_agent_report.json
+
+# Python / Notebook 缓存
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
